@@ -498,7 +498,6 @@ openclaw-multi-bot-config/
 │   └── test/
 └── scripts/
     ├── schema.request.json
-    ├── channel_registry.json
     ├── plan_config.mjs
     └── apply_config.mjs
 ```
@@ -514,7 +513,6 @@ openclaw-multi-bot-config/
 其中建议职责分工如下：
 
 - `schema.request.json`：约束模型允许输出的结构化字段
-- `channel_registry.json`：约束渠道必填字段和兼容策略
 - `src/cli/plan-config.ts`：把结构化输入转成配置计划
 - `src/cli/apply-config.ts`：执行真实配置写入
 - `src/cli/rollback-config.ts`：在失败或用户要求时回滚

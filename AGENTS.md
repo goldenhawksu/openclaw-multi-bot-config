@@ -12,7 +12,7 @@
   Runtime reference material for the skill. `SKILL.md` should load these files as needed for routing rules, channel field mapping, topology strategies, and examples.
 
 - `scripts/`
-  Stable external entrypoints and schemas. The `*.mjs` wrappers are what users or OpenClaw call directly; they delegate to compiled code under `dist/`. This directory now focuses on two public commands: `plan_config` and `apply_config`, plus `schema.request.json` and `channel_registry.json`.
+  Stable external entrypoints and schemas. The `*.mjs` wrappers are what users or OpenClaw call directly; they delegate to compiled code under `dist/`. This directory now focuses on two public commands: `plan_config` and `apply_config`, plus `schema.request.json`.
 
 - `src/`
   TypeScript source code for the skill implementation.

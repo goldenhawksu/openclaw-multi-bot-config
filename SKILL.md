@@ -47,8 +47,8 @@ Classify the request before acting:
 3. Collect a structured request that matches `scripts/schema.request.json`.
 4. Confirm credential field names before building the request:
    - if the user gives labels like `Bot ID`, `Secret`, `AppKey`, or `Webhook`, map them to the channel's canonical config fields
-   - for registered channels, restate the canonical field names and ask the user to confirm the mapping when there is ambiguity
-   - if the channel is not registered or the mapping is unclear, do not guess; ask the user which exact config field each provided value should populate
+   - if the target channel already exists in `openclaw.json`, compare with the existing account object keys and confirm the mapping when there is ambiguity
+   - if the channel is new or the mapping is unclear, do not guess; ask the user which exact config field each provided value should populate
 5. If routing or channel rules are unclear, read the relevant files under `references/`.
 6. Generate and validate a preview with:
 
@@ -74,7 +74,7 @@ node ./scripts/apply_config.mjs --plan <plan.json> --config <openclaw.json>
 
 - Treat explanation and execution as separate modes. Do not jump to file changes when the user is still asking design or requirements questions.
 - Only operate on the local `openclaw.json` file. Do not try to configure providers, auth, gateway, plugins, prompts, or personas.
-- When the user provides credential labels that do not exactly match the channel registry, confirm the field mapping before generating `request.json`.
+- When the user provides credential labels that do not exactly match the existing config or explicit field set, confirm the field mapping before generating `request.json`.
 - Never hand-edit `openclaw.json` when these scripts can do the work.
 - Never let the model write the final config directly.
 - Treat `scripts/schema.request.json` as the contract for user intent.

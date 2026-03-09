@@ -1,7 +1,7 @@
 import path from "node:path";
 import { issue } from "./result.js";
 import { buildAutoWorkspace, sanitizeIdentifier } from "./paths.js";
-import { loadChannelRegistry, resolveChannelDefinition } from "./registry.js";
+import { resolveChannelDefinition } from "./registry.js";
 function createOperation(type, target, status, reason) {
     return { type, target, status, reason };
 }
@@ -53,7 +53,6 @@ function resolveAccountAgentRef(targetMode, channel, accountId, incomingAgentRef
     return sanitizeIdentifier(`${channel}-${accountId}`);
 }
 export async function generatePlan(request, currentConfig) {
-    const registry = await loadChannelRegistry();
     const discoveredChannels = Object.keys(currentConfig.channels ?? {}).sort();
     const warnings = [];
     const errors = [];
@@ -77,9 +76,9 @@ export async function generatePlan(request, currentConfig) {
     }
     for (const target of request.targets) {
         const currentChannel = currentConfig.channels?.[target.channel];
-        const channelDefinition = resolveChannelDefinition(target.channel, registry, currentConfig, target.credentialFields);
+        const channelDefinition = resolveChannelDefinition(target.channel, currentConfig, target.credentialFields);
         if (!channelDefinition) {
-            errors.push(issue("CHANNEL_UNSUPPORTED", `Unsupported new channel '${target.channel}'. Add it to channel_registry.json, provide credentialFields, or extend an existing configured channel.`, "error", `targets.${target.channel}`));
+            errors.push(issue("CHANNEL_UNSUPPORTED", `Unsupported new channel '${target.channel}'. Provide credentialFields or extend an existing configured channel.`, "error", `targets.${target.channel}`));
             continue;
         }
         if (request.operation === "modify-existing-channel" && !currentChannel) {

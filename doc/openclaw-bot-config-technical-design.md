@@ -94,7 +94,6 @@ openclaw-multi-bot-config/
 │   └── test/
 └── scripts/
     ├── schema.request.json
-    ├── channel_registry.json
     ├── plan_config.mjs
     └── apply_config.mjs
 ```
@@ -102,7 +101,6 @@ openclaw-multi-bot-config/
 说明：
 
 - `schema.request.json` 约束模型允许输出的结构化字段
-- `channel_registry.json` 提供机器可读的渠道字段定义
 - `src/cli/*.ts` 提供真实实现
 - `scripts/*.mjs` 提供稳定的外部入口
 - `apply_config` 负责最终校验、备份和原子写入
@@ -125,7 +123,7 @@ openclaw-multi-bot-config/
 ### 6.2 计划阶段
 
 1. `plan_config` 读取 `request.json` 和当前配置
-2. 根据 `channel_registry.json` 和统一规则生成 `plan.json`
+2. 根据用户确认的字段名或现有配置中的字段名生成 `plan.json`
 3. `plan_config` 同时检查冲突、缺字段、潜在覆盖风险
 4. `mask_secrets` 产出预览可读摘要
 
@@ -494,39 +492,19 @@ MVP 只管理账号级 bindings：
 | 多渠道共用一个 agent | `per-account-channel-peer` |
 | 多 agent 完全隔离 | `per-account-channel-peer` |
 
-## 10. 渠道字段注册表
+## 10. 渠道字段来源
 
-`channel_registry.json` 必须是机器可读文件，不能只靠 Markdown 文档。
+字段来源规则：
 
-建议结构：
-
-```json
-{
-  "dingtalk": {
-    "requiredFields": ["clientId", "clientSecret"],
-    "optionalFields": ["enabled", "enableAICard"],
-    "supportsAccounts": true
-  },
-  "wecom-app": {
-    "requiredFields": ["webhookPath", "token", "encodingAESKey", "corpId", "corpSecret", "agentId"],
-    "optionalFields": ["enabled"],
-    "supportsAccounts": true
-  }
-}
-```
-
-处理策略：
-
-- 已注册渠道：严格校验 `requiredFields`
-- 未注册但当前配置中已存在的渠道：允许从现有账号对象推断字段集合，校验级别为“兼容模式”
-- 未注册且为新增渠道：允许用户在请求中通过 `credentialFields` 显式提供字段集合
-- 未注册且为新增渠道但未提供 `credentialFields`：返回 `CHANNEL_UNSUPPORTED`
+- 当前配置中已存在的渠道：从现有账号对象推断字段集合
+- 新增渠道：用户必须在请求中通过 `credentialFields` 显式提供字段集合
+- 新增渠道但未提供 `credentialFields`：返回 `CHANNEL_UNSUPPORTED`
 
 这样可以同时满足：
 
-- 已知渠道强校验
 - 已配置渠道可增量修改
-- 新渠道不因硬编码白名单被完全阻断
+- 新渠道不被硬编码白名单限制
+- 字段名最终以用户确认结果为准
 
 ## 11. 校验与冲突策略
 
