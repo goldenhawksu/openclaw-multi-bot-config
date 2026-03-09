@@ -132,29 +132,16 @@ Skill 的工作流是：
 node .\scripts\plan_config.mjs --request .\request.json --config C:\Users\Administrator\.openclaw\openclaw.json --out .\plan.json
 ```
 
-### 7.2 校验计划
-
-```powershell
-node .\scripts\validate_plan.mjs --plan .\plan.json --config C:\Users\Administrator\.openclaw\openclaw.json
-```
-
-### 7.3 备份配置
-
-```powershell
-node .\scripts\backup_config.mjs --config C:\Users\Administrator\.openclaw\openclaw.json
-```
-
-### 7.4 应用配置
+### 7.2 应用配置
 
 ```powershell
 node .\scripts\apply_config.mjs --plan .\plan.json --config C:\Users\Administrator\.openclaw\openclaw.json
 ```
 
-### 7.5 回滚配置
+说明：
 
-```powershell
-node .\scripts\rollback_config.mjs --config C:\Users\Administrator\.openclaw\openclaw.json --backup <backup-path>
-```
+- `plan_config` 已内置计划校验和 preview 输出
+- `apply_config` 会按 plan 结果再次校验，并在需要时自动创建备份
 
 ## 8. `request.json` 应该是什么
 

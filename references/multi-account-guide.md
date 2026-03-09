@@ -2,6 +2,20 @@
 
 Use this file when the user asks how OpenClaw multi-account or multi-bot config works, what to configure, or which model to choose before changing files.
 
+Scope:
+
+- answer questions about multi-account config
+- help the user choose a routing scheme
+- confirm field names before configuration
+- modify only `agents`, `channels`, `bindings`, and `session.dmScope`
+
+Out of scope:
+
+- persona design
+- prompt design
+- provider or model setup
+- gateway, plugin, or auth configuration outside the four managed config areas
+
 ## Core concepts
 
 - `channels.<channel>.accounts`: defines how many bot or account entries a channel has
@@ -33,6 +47,11 @@ If the user has not chosen a topology yet, present these options first:
 Default `dmScope` recommendation for multi-account in one channel:
 
 - `per-account-channel-peer`
+
+Default workspace naming when creating multiple agents:
+
+- use folder names `bot1`, `bot2`, `bot3`, ...
+- tell the user these are default names and can be changed later
 
 ## Shared agent vs isolated agents
 

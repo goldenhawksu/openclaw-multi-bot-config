@@ -53,22 +53,22 @@ SKILL.md 引导模型收集信息
 结构化请求 request.json
     |
     v
-plan_config -> validate_plan -> preview
+plan_config -> preview
     |
     v
 用户确认
     |
     v
-backup_config -> apply_config
+apply_config
     |
     v
-验证结果 / 必要时 rollback_config
+验证结果
 ```
 
 架构约束：
 
 - 真实配置写入只能发生在 `apply_config`
-- `plan_config` 和 `validate_plan` 必须纯函数化，不修改磁盘配置
+- `plan_config` 必须纯函数化，不修改磁盘配置
 - 所有脚本都必须返回统一的结果 envelope
 - 所有密钥字段在 preview 和日志中必须掩码
 
@@ -94,25 +94,18 @@ openclaw-multi-bot-config/
 │   └── test/
 └── scripts/
     ├── schema.request.json
-    ├── schema.plan.json
     ├── channel_registry.json
     ├── plan_config.mjs
-    ├── validate_plan.mjs
-    ├── backup_config.mjs
-    ├── apply_config.mjs
-    └── rollback_config.mjs
+    └── apply_config.mjs
 ```
 
 说明：
 
 - `schema.request.json` 约束模型允许输出的结构化字段
-- `schema.plan.json` 约束固定代码输出的配置计划格式
 - `channel_registry.json` 提供机器可读的渠道字段定义
 - `src/cli/*.ts` 提供真实实现
 - `scripts/*.mjs` 提供稳定的外部入口
-- `backup_config` 负责创建备份
-- `apply_config` 负责原子写入
-- `rollback_config` 负责按备份恢复
+- `apply_config` 负责最终校验、备份和原子写入
 
 注：
 
@@ -133,24 +126,16 @@ openclaw-multi-bot-config/
 
 1. `plan_config` 读取 `request.json` 和当前配置
 2. 根据 `channel_registry.json` 和统一规则生成 `plan.json`
-3. `validate_plan` 检查冲突、缺字段、潜在覆盖风险
+3. `plan_config` 同时检查冲突、缺字段、潜在覆盖风险
 4. `mask_secrets` 产出预览可读摘要
 
 ### 6.3 应用阶段
 
 1. 用户确认 apply
-2. `backup_config` 创建备份
+2. `apply_config` 创建备份
 3. `apply_config` 执行 merge 并原子替换
 4. 写入后再次解析结果文件，确保 JSON 合法
 5. 输出验证命令和变更摘要
-
-### 6.4 恢复阶段
-
-以下情况允许调用 `rollback_config`：
-
-- `apply_config` 写入后验证失败
-- 用户明确要求恢复上一次修改
-- 预览正确但运行后发现业务路由不符合预期
 
 ## 7. 数据契约
 
@@ -373,64 +358,21 @@ node ./scripts/plan_config.mjs --request <path> --config <path> [--out <path>]
 - 标准 envelope
 - `data.plan`
 - `data.preview`
+- `data.previewConfig`
 
 约束：
 
 - 不允许写入 `openclaw.json`
 - 同一输入必须生成稳定顺序的计划结果
+- 同时完成字段完整性、唯一性和覆盖风险校验
 
-### 8.2 `validate_plan`
-
-职责：
-
-- 校验 plan 是否满足 schema
-- 校验字段完整性、唯一性和覆盖风险
-- 对不安全变更返回阻断错误
-
-输入参数建议：
-
-```text
-node ./scripts/validate_plan.mjs --plan <path> --config <path>
-```
-
-阻断场景：
-
-- `accountId` 在同一渠道重复
-- `agentId` 重复但 `workspace` 冲突
-- 同一 `channel + accountId` 已绑定到其他 agent，且未允许 override
-- `defaultAccount` 不存在
-- 渠道必填字段缺失
-
-### 8.3 `backup_config`
-
-职责：
-
-- 在写入前为目标配置创建带时间戳的备份
-- 返回备份路径
-
-输入参数建议：
-
-```text
-node ./scripts/backup_config.mjs --config <path> [--backup-dir <path>]
-```
-
-备份目录默认值建议：
-
-```text
-<config-dir>/backups/openclaw-bot-config/
-```
-
-文件名建议：
-
-```text
-openclaw-YYYYMMDD-HHMMSS.json.bak
-```
-
-### 8.4 `apply_config`
+### 8.2 `apply_config`
 
 职责：
 
 - 读取当前配置和 plan
+- 重新执行最终校验
+- 在写入前为目标配置创建带时间戳的备份
 - 执行 merge
 - 先写入临时文件，再原子替换
 - 写入后重新解析并验证结果
@@ -446,23 +388,6 @@ node ./scripts/apply_config.mjs --plan <path> --config <path> [--backup <path>]
 - 不允许在没有 plan 的情况下直接改配置
 - 不允许删除不在 patch 管理范围内的现有配置
 - 写入后若 JSON 校验失败，必须返回错误并保留备份路径
-
-### 8.5 `rollback_config`
-
-职责：
-
-- 把备份文件恢复为当前配置
-
-输入参数建议：
-
-```text
-node ./scripts/rollback_config.mjs --config <path> --backup <path>
-```
-
-规则：
-
-- 回滚也必须使用临时文件 + 原子替换
-- 恢复后必须再次验证 JSON 是否可解析
 
 ### 8.6 `mask_secrets`
 
@@ -714,7 +639,7 @@ tests/
 以下条件同时满足时，视为“技术上可稳定交付”：
 
 1. 模型输出被 `schema.request.json` 严格约束。
-2. `plan_config`、`validate_plan`、`apply_config`、`rollback_config` 的接口已经固定。
+2. `plan_config`、`apply_config` 的接口已经固定。
 3. `agents`、`bindings`、`channels`、`session.dmScope` 的 merge 规则已经写死并可测试。
 4. 脱敏、备份、原子写入、回滚路径已经定义完整。
 5. 至少有一组 fixture 可以证明多账号共用、多 agent 隔离和增量修改都可重复通过。

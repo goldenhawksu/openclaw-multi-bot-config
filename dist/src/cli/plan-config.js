@@ -4,7 +4,8 @@ import { maskSecrets } from "../lib/mask-secrets.js";
 import { runCli } from "../lib/output.js";
 import { generatePlan } from "../lib/planner.js";
 import { loadRequest } from "../lib/request.js";
-import { CliError, okResult } from "../lib/result.js";
+import { CliError, errorResult, okResult } from "../lib/result.js";
+import { validatePlan } from "../lib/validator.js";
 export async function main() {
     await runCli(async () => {
         const args = parseArgs(process.argv.slice(2));
@@ -17,18 +18,30 @@ export async function main() {
         }
         const currentConfig = await readJsonFile(configPath);
         const plan = await generatePlan({ ...request, configPath }, currentConfig);
+        const validation = await validatePlan(plan, currentConfig);
+        const errors = validation.issues.filter((entry) => entry.severity === "error");
         if (outPath) {
             await writeJsonFileAtomic(outPath, plan);
         }
-        return okResult("Plan generated", {
+        const data = {
             plan,
             preview: maskSecrets({
                 summary: plan.summary,
                 patch: plan.patch,
-                warnings: plan.warnings,
-                errors: plan.errors
+                warnings: [...plan.warnings, ...validation.warnings],
+                errors: [...plan.errors, ...errors]
             }),
+            previewConfig: maskSecrets(validation.previewConfig),
             ...(outPath ? { planPath: outPath } : {})
-        });
+        };
+        if (errors.length > 0) {
+            return errorResult(errors[0]?.code ?? "PLAN_INVALID", errors[0]?.message ?? "Plan validation failed", [
+                ...validation.issues,
+                ...validation.warnings
+            ]);
+        }
+        return okResult("Plan generated", {
+            ...data
+        }, validation.warnings);
     });
 }

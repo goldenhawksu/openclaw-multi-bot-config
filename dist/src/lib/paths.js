@@ -9,6 +9,6 @@ export function getScriptsDir() {
 export function sanitizeIdentifier(value) {
     return value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 }
-export function buildAutoWorkspace(configPath, agentId) {
-    return path.join(path.dirname(configPath), `workspace-${sanitizeIdentifier(agentId)}`);
+export function buildAutoWorkspace(configPath, workspaceName) {
+    return path.join(path.dirname(configPath), sanitizeIdentifier(workspaceName));
 }

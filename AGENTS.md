@@ -12,7 +12,7 @@
   Runtime reference material for the skill. `SKILL.md` should load these files as needed for routing rules, channel field mapping, topology strategies, and examples.
 
 - `scripts/`
-  Stable external entrypoints and schemas. The `*.mjs` wrappers are what users or OpenClaw call directly; they delegate to compiled code under `dist/`. This directory also contains `schema.request.json`, `schema.plan.json`, and `channel_registry.json`.
+  Stable external entrypoints and schemas. The `*.mjs` wrappers are what users or OpenClaw call directly; they delegate to compiled code under `dist/`. This directory now focuses on two public commands: `plan_config` and `apply_config`, plus `schema.request.json` and `channel_registry.json`.
 
 - `src/`
   TypeScript source code for the skill implementation.
@@ -62,3 +62,14 @@
 
 - Usually ignore:
   `node_modules/`, `artifacts/`, `.artifacts/`, coverage output, temp files, backup files, and local editor/environment files.
+
+## Functional scope
+
+This skill is intentionally narrow:
+
+- answer user questions by reading bundled reference documents
+- offer a small set of routing/configuration options
+- confirm actual credential field names before planning
+- modify only `agents`, `channels`, `bindings`, and `session.dmScope` in the local `openclaw.json`
+
+It should not expand into persona setup, prompt design, provider configuration, or unrelated OpenClaw settings.

@@ -44,7 +44,10 @@ test("isolated-agent planning generates agents and stable bindings", async () =>
     const plan = await generatePlan(request, config);
     assert.equal(plan.resolved.agents.length, 2);
     assert.equal(plan.resolved.bindings.length, 2);
+    assert.equal(plan.resolved.agents[0]?.workspace?.endsWith("bot1"), true);
+    assert.equal(plan.resolved.agents[1]?.workspace?.endsWith("bot2"), true);
     assert.deepEqual(plan.summary.bindings.map((binding) => `${binding.channel}:${binding.accountId}:${binding.agentId}`), ["dingtalk:main:ding-main", "dingtalk:work:ding-work"]);
+    assert.equal(plan.warnings.some((entry) => entry.message.includes("Auto workspace")), true);
     const mergedOnce = mergeConfig(config, plan);
     const mergedTwice = mergeConfig(mergedOnce, plan);
     assert.deepEqual(mergedOnce, mergedTwice);
@@ -128,6 +131,33 @@ test("apply creates a backup and rollback restores the original file", async () 
     assert.equal(rollbackResult.ok, true);
     const rolledBackConfig = await readJsonFile(configPath);
     assert.deepEqual(rolledBackConfig, config);
+});
+test("merge only changes agents channels bindings and session", async () => {
+    const requestFixture = await loadFixtureJson("requests", "request-isolated.json");
+    const config = {
+        meta: { keep: true },
+        gateway: { port: 18789 },
+        models: { providers: { demo: { enabled: true } } },
+        channels: {},
+        bindings: [],
+        session: {}
+    };
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-bot-config-scope-"));
+    const configPath = path.join(tempDir, "openclaw.json");
+    await writeJsonFileAtomic(configPath, config);
+    const requestPath = path.join(tempDir, "request.json");
+    await writeJsonFileAtomic(requestPath, { ...requestFixture, configPath });
+    const { request, issues } = await loadRequest(requestPath);
+    assert.equal(issues.length, 0);
+    const plan = await generatePlan(request, config);
+    const merged = mergeConfig(config, plan);
+    assert.deepEqual(merged.meta, config.meta);
+    assert.deepEqual(merged.gateway, config.gateway);
+    assert.deepEqual(merged.models, config.models);
+    assert.ok(merged.agents?.list);
+    assert.ok(merged.channels?.dingtalk);
+    assert.ok(merged.bindings);
+    assert.equal(merged.session?.dmScope, "per-account-channel-peer");
 });
 test("copied skill directory can still execute plan_config wrapper", async () => {
     const requestFixture = await loadFixtureJson("requests", "request-isolated.json");

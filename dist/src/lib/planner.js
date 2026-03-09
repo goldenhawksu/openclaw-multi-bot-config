@@ -1,3 +1,4 @@
+import path from "node:path";
 import { issue } from "./result.js";
 import { buildAutoWorkspace, sanitizeIdentifier } from "./paths.js";
 import { loadChannelRegistry, resolveChannelDefinition } from "./registry.js";
@@ -24,14 +25,14 @@ function resolveDmScope(request, currentConfig) {
 function determineDefaultAccount(target, currentChannel) {
     return target.defaultAccount ?? currentChannel?.defaultAccount ?? target.accounts[0]?.accountId;
 }
-function createResolvedAgent(requestedAgent, agentId, currentConfigPath, currentConfig) {
+function createResolvedAgent(requestedAgent, agentId, autoWorkspaceName, currentConfigPath, currentConfig) {
     const currentAgent = currentConfig.agents?.list?.find((agent) => agent.id === agentId);
     const workspaceMode = requestedAgent?.workspaceMode ?? "auto";
     const workspace = workspaceMode === "custom"
         ? requestedAgent?.workspace
         : workspaceMode === "existing"
             ? currentAgent?.workspace
-            : currentAgent?.workspace ?? buildAutoWorkspace(currentConfigPath, agentId);
+            : currentAgent?.workspace ?? buildAutoWorkspace(currentConfigPath, autoWorkspaceName);
     return {
         id: agentId,
         ...(requestedAgent?.default !== undefined ? { default: requestedAgent.default } : currentAgent?.default !== undefined ? { default: currentAgent.default } : {}),
@@ -62,6 +63,18 @@ export async function generatePlan(request, currentConfig) {
     const bindingMap = new Map();
     const requestedAgentsById = new Map(request.agents.map((agent) => [agent.id, agent]));
     const managedAgents = new Map();
+    const autoWorkspaceNames = new Map();
+    let nextWorkspaceIndex = 1;
+    function resolveAutoWorkspaceName(agentId) {
+        const existing = autoWorkspaceNames.get(agentId);
+        if (existing) {
+            return existing;
+        }
+        const generated = `bot${nextWorkspaceIndex}`;
+        nextWorkspaceIndex += 1;
+        autoWorkspaceNames.set(agentId, generated);
+        return generated;
+    }
     for (const target of request.targets) {
         const currentChannel = currentConfig.channels?.[target.channel];
         const channelDefinition = resolveChannelDefinition(target.channel, registry, currentConfig, target.credentialFields);
@@ -76,7 +89,7 @@ export async function generatePlan(request, currentConfig) {
         const resolvedAccounts = target.accounts.map((account) => {
             const agentRef = resolveAccountAgentRef(target.mode, target.channel, account.accountId, account.agentRef, request, currentConfig);
             if (agentRef) {
-                managedAgents.set(agentRef, createResolvedAgent(requestedAgentsById.get(agentRef), agentRef, request.configPath, currentConfig));
+                managedAgents.set(agentRef, createResolvedAgent(requestedAgentsById.get(agentRef), agentRef, resolveAutoWorkspaceName(agentRef), request.configPath, currentConfig));
             }
             return {
                 ...clone(account),
@@ -141,6 +154,14 @@ export async function generatePlan(request, currentConfig) {
         }
     }
     if (resolvedAgents.length > 0) {
+        for (const agent of resolvedAgents) {
+            const requestedAgent = requestedAgentsById.get(agent.id);
+            const currentAgent = currentConfig.agents?.list?.find((entry) => entry.id === agent.id);
+            if ((requestedAgent?.workspaceMode ?? "auto") === "auto" && !currentAgent?.workspace) {
+                const workspaceName = path.basename(String(agent.workspace ?? ""));
+                warnings.push(issue("OK", `Auto workspace for agent '${agent.id}' defaults to '${workspaceName}'. The user can change this later if needed.`, "warning", `agents.${agent.id}.workspace`));
+            }
+        }
         patch.agents = {
             ...(currentConfig.agents ? clone(currentConfig.agents) : {}),
             list: resolvedAgents.map((agent) => {
